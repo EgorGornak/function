@@ -1,0 +1,24 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/egor/HomeWork/cpp-course/functionImpl/main.cpp
+iostream
+-
+cassert
+-
+my_function.h
+/home/egor/HomeWork/cpp-course/functionImpl/my_function.h
+functional
+-
+
+/home/egor/HomeWork/cpp-course/functionImpl/my_function.h
+memory
+-
+cstring
+-
+
