@@ -45,18 +45,17 @@ public:
     }
 
     explicit operator bool() const noexcept {
-        return is_small && holder != nullptr;
+        return (is_small || holder != nullptr);
     }
 
     template<typename FunctionT>
-    my_function(FunctionT functionT) : holder(new template_function_holder<FunctionT>(functionT)){
+    my_function(FunctionT functionT) {
         if (sizeof(FunctionT) <= BUFFER_SIZE) {
             is_small = true;
             new(buffer) template_function_holder<FunctionT>(functionT);
         } else {
             is_small = false;
-            ///holder = std::make_unique<FunctionT>(FunctionT)
-            ///holder = std::make_unique<template_function_holder<FunctionT>>(functionT);
+            holder = std::make_unique<template_function_holder<FunctionT>>(functionT);
         }
     }
 
@@ -113,8 +112,7 @@ private:
         FunctionT currentFunction;
     };
 
-
-
+    
     bool is_small;
     static unsigned const int BUFFER_SIZE = 40;
     std::unique_ptr<function_holder_base> holder;

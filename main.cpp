@@ -118,6 +118,7 @@ void all_test() {
     test_lambda();
     test_diffTypes();
     NIKITOZZZZ_test();
+    std::cout << "OK!";
 }
 
 int main() {
