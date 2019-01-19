@@ -61,10 +61,10 @@ public:
 
     ReturnType operator()(ArgTypes ... args) const {
         if (is_small) {
-            auto p = (function_holder_base*)(buffer);
-            return p->call(args...);
+            auto p = reinterpret_cast<function_holder_base*>(const_cast<char*>(buffer));
+            return p->call(std::forward<ArgTypes>(args) ...);
         }
-        return holder->call(args ...);
+        return holder->call(std::forward<ArgTypes>(args) ...);
     }
 
     void swap(my_function &other) noexcept {
@@ -101,7 +101,7 @@ private:
         template_function_holder(FunctionT functionT) : function_holder_base(), currentFunction(functionT) {}
 
         virtual ReturnType call(ArgTypes ... args)  {
-            return currentFunction(args ...);
+            return currentFunction(std::forward<ArgTypes>(args) ...);
         }
 
         virtual std::unique_ptr<function_holder_base> copy() {
@@ -112,7 +112,7 @@ private:
         FunctionT currentFunction;
     };
 
-    
+
     bool is_small;
     static unsigned const int BUFFER_SIZE = 40;
     std::unique_ptr<function_holder_base> holder;
