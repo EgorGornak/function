@@ -3,6 +3,9 @@
 #include "my_function.h"
 #include <functional>
 #include <vector>
+#include <set>
+#include <unordered_set>
+
 
 int foo() {
     return 1;
@@ -101,6 +104,22 @@ void test_copy() {
     assert(g() == -1);
 }
 
+void test_copy_small_object() {
+    std::shared_ptr<std::vector<int>> buffer = std::make_shared<std::vector<int>>(100, -1);
+    my_function<int()> g;
+    {
+        my_function<int()> f = [buffer]() {
+            return (*buffer)[99];
+        };
+        g = f;
+        my_function<int()> h(f);
+        assert(f() == -1);
+        assert(g() == -1);
+        assert(h() == -1);
+    }
+    assert(g() == -1);
+}
+
 void NIKITOZZZZ_test() {
     // тут хз, мб плохой тест (для решение нужна убрать const после invoke/call/etc)
     int foo = 1;
@@ -133,6 +152,7 @@ void all_test() {
     test_swap();
     test_lambda();
     test_diffTypes();
+    test_copy_small_object();
     test_copy();
     NIKITOZZZZ_test();
     std::cout << "OK!";

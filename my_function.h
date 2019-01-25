@@ -11,29 +11,27 @@ class my_function;
 template<typename ReturnType, typename ... ArgTypes>
 class my_function<ReturnType(ArgTypes ...)> {
 public:
-    my_function() noexcept : holder(), is_small(false) {}
+    my_function() noexcept : state(EMPTY) {}
 
-    my_function(nullptr_t) noexcept : holder(), is_small(false) {}
+    my_function(nullptr_t) noexcept : state(EMPTY) {}
 
     my_function(my_function const &other) noexcept {
-        is_small = other.is_small;
-        if (other.is_small) {
-            memcpy(buffer, other.buffer, BUFFER_SIZE);
-        } else {
+        state = other.state;
+        if (state == SMALL) {
+            function_holder_base *p = reinterpret_cast<function_holder_base *>(const_cast<char *>(other.buffer));
+            p->create_small_copy(buffer);
+        } else if (state == BIG) {
             holder = other.holder->copy();
         }
     }
 
     my_function(my_function &&other) {
-        is_small = other.is_small;
-        if (other.is_small) {
-            memcpy(buffer, other.buffer, BUFFER_SIZE);
-        } else {
-            holder = std::move(other.holder);
-        }
+        std::swap(buffer, other.buffer);
+        std::swap(state, other.state);
+        other.~my_function();
     }
 
-    my_function &operator=(my_function const &other) {
+    my_function &operator=(my_function const &other) noexcept {
         my_function tmp(other);
         swap(tmp);
         return *this;
@@ -45,35 +43,42 @@ public:
     }
 
     explicit operator bool() const noexcept {
-        return (is_small || holder != nullptr);
+        return state != EMPTY;
     }
 
     template<typename FunctionT>
-    my_function(FunctionT functionT) {
+    my_function(FunctionT function) {
         if (sizeof(FunctionT) <= BUFFER_SIZE) {
-            is_small = true;
-            new(buffer) template_function_holder<FunctionT>(functionT);
+            state = SMALL;
+            new(buffer) template_function_holder<FunctionT>(std::move(function));
         } else {
-            is_small = false;
-            holder = std::make_unique<template_function_holder<FunctionT>>(functionT);
+            state = BIG;
+            holder = std::make_unique<template_function_holder<FunctionT>>(function);
         }
     }
 
     ReturnType operator()(ArgTypes ... args) const {
-        if (is_small) {
-            auto p = reinterpret_cast<function_holder_base*>(const_cast<char*>(buffer));
-            return p->call(std::forward<ArgTypes>(args) ...);
+        if (state == EMPTY) {
+            std::__throw_bad_function_call();
+        } else if (state == SMALL) {
+            auto p = reinterpret_cast<function_holder_base *>(const_cast<char *>(buffer));
+            return p->call(std::forward<ArgTypes>(args)...);
+        } else {
+            return holder->call(std::forward<ArgTypes>(args)...);
         }
-        return holder->call(std::forward<ArgTypes>(args) ...);
     }
 
     void swap(my_function &other) noexcept {
-        std::swap(is_small, other.is_small);
-        std::swap(holder, other.holder);
-        char tmpBuffer[BUFFER_SIZE];
-        memcpy(tmpBuffer, buffer, BUFFER_SIZE);
-        memcpy(buffer, other.buffer, BUFFER_SIZE);
-        memcpy(other.buffer, tmpBuffer, BUFFER_SIZE);
+        std::swap(state, other.state);
+        std::swap(buffer, other.buffer);
+    }
+
+    ~my_function() {
+        if (state == SMALL) {
+            ((function_holder_base *) buffer)->~function_holder_base();
+        } else if (state == BIG) {
+            holder.reset();
+        }
     }
 
 private:
@@ -83,29 +88,31 @@ private:
 
         virtual ~function_holder_base() {}
 
-        virtual ReturnType call(ArgTypes ... args)  = 0;
+        virtual ReturnType call(ArgTypes ... args) = 0;
 
         virtual std::unique_ptr<function_holder_base> copy() = 0;
 
-
-    private:
-        function_holder_base(function_holder_base const &other);
-
-        void operator=(function_holder_base const &other);
+        virtual void create_small_copy(void *buff) = 0;
     };
 
 
     template<typename FunctionT>
     class template_function_holder : public function_holder_base {
     public:
-        template_function_holder(FunctionT functionT) : function_holder_base(), currentFunction(functionT) {}
+        template_function_holder(FunctionT const &function) : currentFunction(function) {}
 
-        virtual ReturnType call(ArgTypes ... args)  {
+        ~template_function_holder() override = default;
+
+        virtual ReturnType call(ArgTypes ... args) {
             return currentFunction(std::forward<ArgTypes>(args) ...);
         }
 
         virtual std::unique_ptr<function_holder_base> copy() {
-            return std::unique_ptr<function_holder_base>(new template_function_holder<FunctionT>(currentFunction));
+            return std::make_unique<template_function_holder<FunctionT>>(currentFunction);
+        }
+
+        virtual void create_small_copy(void *buffer) {
+            new(buffer)template_function_holder<FunctionT>(currentFunction);
         }
 
     private:
@@ -113,10 +120,15 @@ private:
     };
 
 
-    bool is_small;
     static unsigned const int BUFFER_SIZE = 40;
-    std::unique_ptr<function_holder_base> holder;
-    char buffer[BUFFER_SIZE];
+    enum STATE {
+        EMPTY, SMALL, BIG
+    };
+    STATE state;
+    union {
+        std::unique_ptr<function_holder_base> holder;
+        char buffer[BUFFER_SIZE];
+    };
 };
 
 #endif //FUNCTIONIMPL_MY_FUNCTION_H
