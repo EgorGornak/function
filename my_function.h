@@ -25,7 +25,7 @@ public:
         }
     }
 
-    my_function(my_function &&other) {
+    my_function(my_function &&other) : is_small(false), holder(nullptr) {
         std::swap(buffer, other.buffer);
         std::swap(is_small, other.is_small);
         other.~my_function();
@@ -53,7 +53,7 @@ public:
             new(buffer) template_function_holder<FunctionT>(std::move(function));
         } else {
             is_small = false;
-            holder = std::make_unique<template_function_holder<FunctionT>>(function);
+            holder = std::make_unique<template_function_holder<FunctionT>>(std::move(function));
         }
     }
 
@@ -121,7 +121,7 @@ private:
     bool is_small;
     union {
         std::unique_ptr<function_holder_base> holder;
-        char buffer[BUFFER_SIZE]{};
+        char buffer[BUFFER_SIZE];
     };
 };
 
