@@ -1,3 +1,0 @@
-/home/egor/HomeWork/cpp-course/functionImpl/cmake-build-debug/CMakeFiles/rebuild_cache.dir
-/home/egor/HomeWork/cpp-course/functionImpl/cmake-build-debug/CMakeFiles/functionImpl.dir
-/home/egor/HomeWork/cpp-course/functionImpl/cmake-build-debug/CMakeFiles/edit_cache.dir
